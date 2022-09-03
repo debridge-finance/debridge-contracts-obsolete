@@ -23,6 +23,7 @@ contract WhiteDebridge is AccessControl, IWhiteDebridge {
         uint256 collectedFees; // total collected fees that can be used to buy LINK
         uint256 balance; // total locked assets
         uint256 minReserves; // minimal hot reserves
+        uint256[] chainIds; // list of all supported chain ids
         mapping(uint256 => bool) isSupported; // wheter the chain for the asset is supported
     }
 
@@ -37,23 +38,49 @@ contract WhiteDebridge is AccessControl, IWhiteDebridge {
     mapping(address => uint256) public getUserNonce; // submissionId (i.e. hash( debridgeId, amount, receiver, nonce)) => whether is claimed
 
     event Sent(
-        bytes32 sentId,
+        bytes32 submissionId,
         bytes32 debridgeId,
         uint256 amount,
         address receiver,
         uint256 nonce,
         uint256 chainIdTo
     ); // emited once the native tokens are locked to be sent to the other chain
-    event Minted(uint256 amount, address receiver, bytes32 debridgeId); // emited once the wrapped tokens are minted on the current chain
+    event Minted(
+        bytes32 submissionId,
+        uint256 amount,
+        address receiver,
+        bytes32 debridgeId
+    ); // emited once the wrapped tokens are minted on the current chain
     event Burnt(
-        bytes32 burntId,
+        bytes32 submissionId,
         bytes32 debridgeId,
         uint256 amount,
         address receiver,
         uint256 nonce,
         uint256 chainIdTo
     ); // emited once the wrapped tokens are sent to the contract
-    event Claimed(uint256 amount, address receiver, bytes32 debridgeId); // emited once the tokens are withdrawn on native chain
+    event Claimed(
+        bytes32 submissionId,
+        uint256 amount,
+        address receiver,
+        bytes32 debridgeId
+    ); // emited once the tokens are withdrawn on native chain
+    event PairAdded(
+        bytes32 indexed debridgeId,
+        address indexed tokenAddress,
+        uint256 indexed chainId,
+        uint256 minAmount,
+        uint256 transferFee,
+        uint256 minReserves
+    ); // emited when new asset is supported
+    event ChainSupportAdded(
+        bytes32 indexed debridgeId,
+        uint256 indexed chainId
+    ); // emited when the asset is allowed to be spent on other chains
+    event ChainSupportRemoved(
+        bytes32 indexed debridgeId,
+        uint256 indexed chainId
+    ); // emited when the asset is disallowed to be spent on other chains
 
     modifier onlyAggregator {
         require(address(aggregator) == msg.sender, "onlyAggregator: bad role");
@@ -76,11 +103,13 @@ contract WhiteDebridge is AccessControl, IWhiteDebridge {
     /// @dev Constructor that initializes the most important configurations.
     /// @param _minAmount Minimal amount of current chain token to be wrapped.
     /// @param _transferFee Transfer fee rate.
+    /// @param _minReserves Minimal reserve ratio.
     /// @param _aggregator Submission aggregator address.
     /// @param _supportedChainIds Chain ids where native token of the current chain can be wrapped.
     constructor(
         uint256 _minAmount,
         uint256 _transferFee,
+        uint256 _minReserves,
         IWhiteAggregator _aggregator,
         uint256[] memory _supportedChainIds,
         IWETH _weth,
@@ -99,6 +128,7 @@ contract WhiteDebridge is AccessControl, IWhiteDebridge {
             chainId,
             _minAmount,
             _transferFee,
+            _minReserves,
             _supportedChainIds
         );
         aggregator = _aggregator;
@@ -120,11 +150,8 @@ contract WhiteDebridge is AccessControl, IWhiteDebridge {
         uint256 _chainIdTo
     ) external payable override {
         DebridgeInfo storage debridge = getDebridge[_debridgeId];
-        require(debridge.chainId == chainId, "send: not native chain chain");
-        require(
-            debridge.isSupported[_chainIdTo],
-            "send: wrong targed target chain"
-        );
+        require(debridge.chainId == chainId, "send: not native chain");
+        require(debridge.isSupported[_chainIdTo], "send: wrong targed chain");
         require(_amount >= debridge.minAmount, "send: amount too low");
         if (debridge.tokenAddress == address(0)) {
             require(_amount == msg.value, "send: amount mismatch");
@@ -165,7 +192,7 @@ contract WhiteDebridge is AccessControl, IWhiteDebridge {
         DebridgeInfo storage debridge = getDebridge[_debridgeId];
         isSubmissionUsed[mintId] = true;
         IWrappedAsset(debridge.tokenAddress).mint(_receiver, _amount);
-        emit Minted(_amount, _receiver, _debridgeId);
+        emit Minted(mintId, _amount, _receiver, _debridgeId);
     }
 
     /// @dev Burns wrapped asset and allowss to claim it on the other chain.
@@ -227,7 +254,7 @@ contract WhiteDebridge is AccessControl, IWhiteDebridge {
         } else {
             IERC20(debridge.tokenAddress).safeTransfer(_receiver, _amount);
         }
-        emit Claimed(_amount, _receiver, _debridgeId);
+        emit Claimed(burntId, _amount, _receiver, _debridgeId);
     }
 
     /* ADMIN */
@@ -236,11 +263,13 @@ contract WhiteDebridge is AccessControl, IWhiteDebridge {
     /// @param _tokenAddress Address of the asset on the current chain.
     /// @param _minAmount Minimal amount of current chain token to be wrapped.
     /// @param _transferFee Transfer fee rate.
+    /// @param _minReserves Minimal reserve ration.
     /// @param _supportedChainIds Chain ids where native token of the current chain can be wrapped.
-    function addNativelAsset(
+    function addNativeAsset(
         address _tokenAddress,
         uint256 _minAmount,
         uint256 _transferFee,
+        uint256 _minReserves,
         uint256[] memory _supportedChainIds
     ) external override onlyAdmin() {
         bytes32 debridgeId = getDebridgeId(chainId, _tokenAddress);
@@ -250,6 +279,7 @@ contract WhiteDebridge is AccessControl, IWhiteDebridge {
             chainId,
             _minAmount,
             _transferFee,
+            _minReserves,
             _supportedChainIds
         );
     }
@@ -259,6 +289,7 @@ contract WhiteDebridge is AccessControl, IWhiteDebridge {
     /// @param _chainId Current chain id.
     /// @param _minAmount Minimal amount of the asset to be wrapped.
     /// @param _transferFee Transfer fee rate.
+    /// @param _minReserves Minimal reserve ration.
     /// @param _supportedChainIds Chain ids where the token of the current chain can be transfered.
     /// @param _name Wrapped asset name.
     /// @param _symbol Wrapped asset symbol.
@@ -267,6 +298,7 @@ contract WhiteDebridge is AccessControl, IWhiteDebridge {
         uint256 _chainId,
         uint256 _minAmount,
         uint256 _transferFee,
+        uint256 _minReserves,
         uint256[] memory _supportedChainIds,
         string memory _name,
         string memory _symbol
@@ -279,6 +311,7 @@ contract WhiteDebridge is AccessControl, IWhiteDebridge {
             _chainId,
             _minAmount,
             _transferFee,
+            _minReserves,
             _supportedChainIds
         );
     }
@@ -294,6 +327,11 @@ contract WhiteDebridge is AccessControl, IWhiteDebridge {
     ) external override onlyAdmin() {
         DebridgeInfo storage debridge = getDebridge[_debridgeId];
         debridge.isSupported[_chainId] = _isSupported;
+        if (_isSupported) {
+            emit ChainSupportAdded(_debridgeId, _chainId);
+        } else {
+            emit ChainSupportRemoved(_debridgeId, _chainId);
+        }
     }
 
     /// @dev Set aggregator address.
@@ -358,11 +396,11 @@ contract WhiteDebridge is AccessControl, IWhiteDebridge {
         DebridgeInfo storage debridge = getDebridge[debridgeId];
         uint256 minReserves =
             (debridge.balance * debridge.minReserves) / DENOMINATOR;
+        uint256 balance = getBalance(debridge.tokenAddress);
         require(
-            minReserves + _amount > debridge.balance,
+            minReserves + _amount > balance,
             "requestReserves: not enough reserves"
         );
-        debridge.balance -= _amount;
         if (debridge.tokenAddress == address(0)) {
             payable(address(defiController)).transfer(_amount);
         } else {
@@ -383,15 +421,12 @@ contract WhiteDebridge is AccessControl, IWhiteDebridge {
     {
         bytes32 debridgeId = getDebridgeId(chainId, _tokenAddress);
         DebridgeInfo storage debridge = getDebridge[debridgeId];
-        if (debridge.tokenAddress == address(0)) {
-            debridge.balance += msg.value;
-        } else {
+        if (debridge.tokenAddress != address(0)) {
             IERC20(debridge.tokenAddress).safeTransferFrom(
                 address(defiController),
                 address(this),
                 _amount
             );
-            debridge.balance += _amount;
         }
     }
 
@@ -437,6 +472,7 @@ contract WhiteDebridge is AccessControl, IWhiteDebridge {
     /// @param _chainId Current chain id.
     /// @param _minAmount Minimal amount of the asset to be wrapped.
     /// @param _transferFee Transfer fee rate.
+    /// @param _minReserves Minimal reserve ration.
     /// @param _supportedChainIds Chain ids where the token of the current chain can be transfered.
     function _addAsset(
         bytes32 _debridgeId,
@@ -444,6 +480,7 @@ contract WhiteDebridge is AccessControl, IWhiteDebridge {
         uint256 _chainId,
         uint256 _minAmount,
         uint256 _transferFee,
+        uint256 _minReserves,
         uint256[] memory _supportedChainIds
     ) internal {
         DebridgeInfo storage debridge = getDebridge[_debridgeId];
@@ -451,9 +488,22 @@ contract WhiteDebridge is AccessControl, IWhiteDebridge {
         debridge.chainId = _chainId;
         debridge.minAmount = _minAmount;
         debridge.transferFee = _transferFee;
+        debridge.minReserves = _minReserves;
+        uint256 supportedChainId;
         for (uint256 i = 0; i < _supportedChainIds.length; i++) {
-            debridge.isSupported[_supportedChainIds[i]] = true;
+            supportedChainId = _supportedChainIds[i];
+            debridge.isSupported[supportedChainId] = true;
+            debridge.chainIds.push(supportedChainId);
+            emit ChainSupportAdded(_debridgeId, supportedChainId);
         }
+        emit PairAdded(
+            _debridgeId,
+            _tokenAddress,
+            _chainId,
+            _minAmount,
+            _transferFee,
+            _minReserves
+        );
     }
 
     /// @dev Request the assets to be used in defi protocol.
@@ -464,18 +514,29 @@ contract WhiteDebridge is AccessControl, IWhiteDebridge {
     {
         uint256 minReserves =
             (_debridge.balance * _debridge.minReserves) / DENOMINATOR;
-        if (minReserves + _amount < _debridge.balance) {
-            uint256 requestedReserves =
-                _debridge.balance - minReserves + _amount;
+        uint256 balance = getBalance(_debridge.tokenAddress);
+        uint256 requestedReserves =
+            minReserves > _amount ? minReserves : _amount;
+        if (requestedReserves > balance) {
+            requestedReserves = requestedReserves - balance;
             defiController.claimReserve(
                 _debridge.tokenAddress,
                 requestedReserves
             );
-            _debridge.balance += requestedReserves;
         }
     }
 
     /* VIEW */
+
+    /// @dev Check the balance.
+    /// @param _tokenAddress Address of the asset on the other chain.
+    function getBalance(address _tokenAddress) public view returns (uint256) {
+        if (_tokenAddress == address(0)) {
+            return address(this).balance;
+        } else {
+            return IERC20(_tokenAddress).balanceOf(address(this));
+        }
+    }
 
     /// @dev Calculates asset identifier.
     /// @param _tokenAddress Address of the asset on the other chain.
@@ -503,5 +564,15 @@ contract WhiteDebridge is AccessControl, IWhiteDebridge {
             keccak256(
                 abi.encodePacked(_debridgeId, _amount, _receiver, _nonce)
             );
+    }
+
+    /// @dev Get all supported chain ids.
+    /// @param _debridgeId Asset identifier.
+    function getSupportedChainIds(bytes32 _debridgeId)
+        public
+        view
+        returns (uint256[] memory)
+    {
+        return getDebridge[_debridgeId].chainIds;
     }
 }

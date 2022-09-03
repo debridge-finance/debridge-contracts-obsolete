@@ -3,11 +3,13 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
+    "precompile": "mkdir -p build/contracts/ && cp precompiled/* build/contracts/",
     "compile": "truffle compile",
     "migrate": "truffle migrate",
     "verify": "truffle run verify WhiteAggregator WhiteDebridge  ",
     "vefrify": "truffle run verify WhiteAggregator WhiteDebridge ",
-    "test": "truffle test"
+    "start-ganache": "ganache-cli",
+    "test": "truffle test --network test"
   },
   "repository": {
     "type": "git",
@@ -22,6 +24,7 @@
   "dependencies": {
     "@chainlink/contracts": "^0.1.6",
     "@openzeppelin/contracts": "4.0.0-rc.0",
+    "@openzeppelin/test-helpers": "^0.5.10",
     "@truffle/hdwallet-provider": "^1.2.3",
     "dotenv-flow": "^3.2.0",
     "eth-gas-reporter": "^0.2.22",

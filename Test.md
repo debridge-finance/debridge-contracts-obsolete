@@ -23,18 +23,13 @@
 
 **Scenario 1**: Update configs by:
 
-- [ ] admin
-- [ ] one without admin permissions
+- [x] admin
+- [x] one without admin permissions
 
 **Scenario 2**: Withdraw unalocated Links:
 
-- [ ] admin
-- [ ] one without admin permissions
-
-**Scenario 3**: Withdraw unalocated Links:
-
-- [ ] admin
-- [ ] one without admin permissions
+- [x] admin
+- [x] one without admin permissions
 
 ### Test Item: oracle-only functions
 
@@ -46,13 +41,13 @@
 
 **Scenario 1**: Withdraw by:
 
-- [ ] admin
-- [ ] one without admin permissions
+- [x] admin
+- [x] one without admin permissions
 
 **Scenario 2**: Withdraw amount:
 
-- [ ] less then total reward
-- [ ] higher then total reward
+- [x] less then total reward
+- [x] higher then total reward
 
 **Scope**: Test the oracles-related functions of the contract.
 
@@ -62,19 +57,19 @@
 
 **Scenario 1**: Test call by:
 
-- [ ] oracle
-- [ ] one without oracle permissions
+- [x] oracle
+- [x] one without oracle permissions
 
 **Scenario 2**: Test confirmation:
 
-- [ ] once
-- [ ] twice
+- [x] once
+- [x] twice
 
 **Scenario 3**: Test number of confirmation by different oracles:
 
-- [ ] 1 confirmations out of 3 (2 is required)
-- [ ] 2 confirmations out of 3 (2 is required)
-- [ ] 2 confirmations out of 3 (2 is required)
+- [x] 1 confirmations out of 3 (2 is required)
+- [x] 2 confirmations out of 3 (2 is required)
+- [x] 2 confirmations out of 3 (2 is required)
 
 ## Test Item: WrappedAsset
 
@@ -154,24 +149,24 @@
 
 **Scenario 1**: Call each of the methods by:
 
-- [ ] admin
-- [ ] not admin
+- [x] admin
+- [x] not admin
 
 **Scope**: Test adding/removing assets.
 
-**Action**: Invoke the `setChainIdSupport`, `addNativelAsset`, `addExternalAsset` methods.
+**Action**: Invoke the `setChainIdSupport`, `addNativeAsset`, `addExternalAsset` methods.
 
 **Verification Steps**: Verify the operation works fine.
 
 **Scenario 1**: Add asset by:
 
-- [ ] admin
-- [ ] not admin
+- [x] admin
+- [x] not admin
 
 **Scenario 2**: Add asset:
 
-- [ ] new
-- [ ] added before
+- [x] new
+- [x] added before
 
 **Scope**: Test fee managemnet.
 
@@ -203,14 +198,136 @@
 
 **Scope**: Test send.
 
-**Action**: Invoke the `setAggregator`, `setFeeProxy`, `setDefiController`, `setWeth` methods.
+**Action**: Invoke the `send` methods.
 
 **Verification Steps**: Verify the operation works fine.
 
-**Scenario 1**: Call each of the methods by:
+**Scenario 1**: Call send with different chains when:
 
-- [ ] admin
-- [ ] not admin
+- [x] the current chain's asset
+- [x] the outside asset
+
+**Scenario 2**: Call send with different target chains when:
+
+- [x] the target chain is supported
+- [x] the target chain isn't supported
+
+**Scenario 3**: Call send with different amounts:
+
+- [x] the amount is enough
+- [x] to few tokens
+
+**Scenario 4**: Call send with different assets:
+
+- [x] the ERC20
+- [x] native token
+
+**Scope**: Test mint.
+
+**Action**: Invoke the `mint` methods.
+
+**Verification Steps**: Verify the operation works fine.
+
+**Scenario 1**: Call mint with different approvals when:
+
+- [x] the mint is approved
+- [x] the mint isn't approved
+
+**Scenario 2**: Call mint few times:
+
+- [x] first time
+- [x] second time
+
+**Scenario 3**: Call mint with different chains:
+
+- [x] supported chain
+- [x] prohibited chain
+
+**Scope**: Test burn.
+
+**Action**: Invoke the `burn` methods.
+
+**Verification Steps**: Verify the operation works fine.
+
+**Scenario 1**: Call burn with different chains when:
+
+- [x] with the current chain
+- [x] with the different chain
+
+**Scenario 2**: Call burn with diffrent amounts when:
+
+- [x] enough tokens are transfered
+- [x] too few tokens are sent
+
+**Scope**: Test claim.
+
+**Action**: Invoke the `claim` methods.
+
+**Verification Steps**: Verify the operation works fine.
+
+**Scenario 1**: Call claim with different chains when:
+
+- [x] the current chain's asset
+- [x] the outside asset
+
+**Scenario 2**: Call claim with different confirmations when:
+
+- [x] the burnt is confiremd
+- [x] the burnt isn't confirmed
+
+**Scenario 3**: Call claim few times:
+
+- [x] in the first time
+- [x] in the second time
+
+**Scenario 4**: Call claim with different assets:
+
+- [x] the ERC20
+- [x] native token
+
+### Test Item: fee management
+
+**Scope**: Test fee withdrawal.
+
+**Action**: Invoke the `withdrawFee` methods.
+
+**Verification Steps**: Verify the operation works fine.
+
+**Scenario 1**: Call `withdrawFee` by :
+
+- [x] admin
+- [x] non-admin
+
+**Scenario 2**: Call `withdrawFees` with different chains when:
+
+- [x] the current chain's asset
+- [x] the outside asset
+
+**Scenario 3**: Call `withdrawFee` with different assets:
+
+- [x] the ERC20
+- [x] native token
+
+**Scope**: Test fund aggregator.
+
+**Action**: Invoke the `fundAggregator` methods.
+
+**Verification Steps**: Verify the operation works fine.
+
+**Scenario 1**: Call `fundAggregator` by :
+
+- [x] admin
+- [x] non-admin
+
+**Scenario 2**: Call `fundAggregator` with different chains when:
+
+- [x] the current chain's asset
+- [x] the outside asset
+
+**Scenario 3**: Call `fundAggregator` with different assets:
+
+- [x] the ERC20
+- [x] native token
 
 ## Test Item: FeeProxy
 

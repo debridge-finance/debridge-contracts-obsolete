@@ -99,8 +99,8 @@ module.exports = {
         ),
       from: process.env.DEPLOYER_ACCOUNT,
       timeoutBlocks: 5000,
-      gasPrice: 15000000000, // 5 gwei
-      gas: 4000000,
+      gasPrice: 10000000000, // 5 gwei
+      gas: 6000000,
       skipDryRun: true,
     },
     mainnet: {
@@ -164,7 +164,7 @@ module.exports = {
         // See the solidity docs for advice about optimization and evmVersion
         optimizer: {
           enabled: true,
-          runs: 1000,
+          runs: 200,
         },
         //  evmVersion: "byzantium"
       },
